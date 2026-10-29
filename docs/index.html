@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BonfireLink: Seamless Co-op, one button per game</title>
+<meta name="description" content="Install, update, configure and share LukeYui's Seamless Co-op mods for Elden Ring, Dark Souls III, Dark Souls II, Dark Souls Remastered and Sekiro on Windows and Steam Deck.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #110f0d; --panel: #1b1815; --card: #24201c; --line: #3a332c;
+    --text: #e2d8c4; --dim: #a3978a; --ember: #e88c30; --ember-2: #ffd678; --good: #78be6e;
+    --er: #d4af37; --ds3: #c85a32; --ds2: #468cc8; --dsr: #e68228; --sek: #be2832;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 Inter, system-ui, sans-serif; }
+  a { color: var(--ember); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  header.hero { position: relative; overflow: hidden; padding: 72px 0 56px; text-align: center;
+    background: radial-gradient(ellipse 60% 55% at 50% 100%, rgba(232,140,48,.28), transparent 70%), var(--bg); }
+  .embers span { position: absolute; bottom: -10px; width: 4px; height: 4px; border-radius: 50%; background: var(--ember-2);
+    opacity: 0; animation: rise 7s linear infinite; box-shadow: 0 0 8px 2px rgba(232,140,48,.7); }
+  @keyframes rise { 0% { transform: translate(0,0); opacity: 0 } 10% { opacity: .9 } 100% { transform: translate(var(--dx), -520px); opacity: 0 } }
+  @media (prefers-reduced-motion: reduce) { .embers { display: none } }
+  h1 { font-family: Cinzel, serif; font-size: clamp(40px, 7vw, 76px); margin: 0; letter-spacing: .02em; color: var(--ember-2);
+    text-shadow: 0 0 30px rgba(232,140,48,.45); }
+  .tag { font-size: clamp(18px, 2.4vw, 22px); color: var(--text); margin: 10px 0 6px; }
+  .sub { color: var(--dim); max-width: 720px; margin: 0 auto; }
+  .games { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 22px 0 28px; }
+  .pill { border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; font-size: 14px; background: var(--panel); }
+  .pill.er { color: var(--er) } .pill.ds3 { color: var(--ds3) } .pill.ds2 { color: var(--ds2) } .pill.dsr { color: var(--dsr) } .pill.sek { color: var(--sek) }
+  .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-flex; flex-direction: column; align-items: center; padding: 14px 26px; border-radius: 10px; font-weight: 600;
+    min-width: 230px; border: 1px solid transparent; transition: transform .15s, box-shadow .15s; }
+  .btn small { font-weight: 400; font-size: 12.5px; opacity: .85 }
+  .btn:hover { text-decoration: none; transform: translateY(-2px); }
+  .btn.win { background: linear-gradient(180deg, #f2a14a, #d97a22); color: #1b120a; box-shadow: 0 8px 26px rgba(232,140,48,.35); }
+  .btn.deck { background: var(--card); color: var(--text); border-color: #4a6f96; }
+  .btn.deck:hover { box-shadow: 0 8px 26px rgba(26,159,255,.2); }
+  .shot { margin: 40px auto 0; max-width: 940px; border-radius: 14px; border: 1px solid var(--line);
+    box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(232,140,48,.08); display: block; width: 100%; }
+  section { padding: 64px 0; border-top: 1px solid #201c18; }
+  h2 { font-family: Cinzel, serif; font-size: clamp(26px, 3.4vw, 36px); margin: 0 0 8px; color: var(--ember-2); }
+  .lead { color: var(--dim); margin: 0 0 28px; max-width: 760px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--dim); font-size: 15px; }
+  .ico { font-size: 22px; display: block; margin-bottom: 8px; }
+  .steps { counter-reset: s; display: grid; gap: 12px; }
+  .step { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: start; background: var(--card);
+    border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .step::before { counter-increment: s; content: counter(s); display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(232,140,48,.15); color: var(--ember-2); font-weight: 700; border: 1px solid rgba(232,140,48,.4); }
+  .step b { display: block; }
+  .step span { color: var(--dim); font-size: 15px; }
+  pre { background: #0c0b0a; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-size: 14px; color: var(--ember-2); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--dim); font-weight: 500; }
+  .g { font-weight: 600 }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tabs button { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+  .tabs button[aria-selected="true"] { border-color: var(--ember); color: var(--ember-2); }
+  .gallery img { width: 100%; border-radius: 12px; border: 1px solid var(--line); }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+  summary { cursor: pointer; font-weight: 600; }
+  details p { color: var(--dim); margin: 8px 0 0; }
+  footer { padding: 36px 0 50px; color: var(--dim); font-size: 14px; text-align: center; border-top: 1px solid #201c18; }
+  .note { background: rgba(232,140,48,.08); border: 1px solid rgba(232,140,48,.3); border-radius: 10px; padding: 12px 16px; color: var(--text); font-size: 15px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="embers" aria-hidden="true"></div>
+  <div class="wrap">
+    <h1>BonfireLink</h1>
+    <p class="tag">Seamless Co-op, one button per game.</p>
+    <p class="sub">Install, update, configure and share LukeYui's Seamless Co-op mods. Built for Windows and the Steam Deck, as a single portable app.</p>
+    <div class="games">
+      <span class="pill er">Elden Ring</span><span class="pill ds3">Dark Souls III</span><span class="pill ds2">Dark Souls II: SotFS</span>
+      <span class="pill dsr">Dark Souls Remastered</span><span class="pill sek">Sekiro (watching for release)</span>
+    </div>
+    <div class="cta">
+      <a class="btn win" href="https://github.com/clawdroppin/BonfireLink/releases/latest/download/BonfireLink-windows-x64.exe">Download for Windows<small>portable .exe, no installer</small></a>
+      <a class="btn deck" href="#deck">Get it on Steam Deck<small>one line in Konsole</small></a>
+    </div>
+    <img class="shot" src="screenshots/overview.png" alt="BonfireLink showing the Elden Ring overview with a Play co-op button">
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Everything Seamless Co-op needs</h2>
+    <p class="lead">Every game gets its own tab with Overview, Configure, Play together, Saves, Versions and Troubleshoot.</p>
+    <div class="grid">
+      <div class="card"><span class="ico">⬇️</span><h3>Always up to date</h3><p>Checks the author's releases every start. GitHub builds install in one click, checksum verified. Nexus-only builds install themselves the moment the download lands.</p></div>
+      <div class="card"><span class="ico">🔑</span><h3>Nexus, connected</h3><p>Open your API-key page from the app, paste the key, done. Premium: fully automatic. Free: one click on Nexus's "Mod Manager Download" installs the file.</p></div>
+      <div class="card"><span class="ico">⚙️</span><h3>Settings without notepad</h3><p>Toggles, sliders and dropdowns read straight from the mod's ini, so new options appear automatically. Raw editor included.</p></div>
+      <div class="card"><span class="ico">🎚️</span><h3>Presets</h3><p>Relaxed story, Balanced, Veteran, Nightmare, No scaling, PvP night, Streamer, or save your own.</p></div>
+      <div class="card"><span class="ico">🤝</span><h3>Code matching</h3><p>Share one code. Friends paste it and instantly see whether version, patch, password and settings match, then fix it in one click.</p></div>
+      <div class="card"><span class="ico">💾</span><h3>Saves are safe</h3><p>Backups before every change, restore with undo, a second backup folder, and one-click vanilla ⇄ co-op save copy.</p></div>
+      <div class="card"><span class="ico">⏪</span><h3>Rollback</h3><p>Every update keeps the version it replaced. Install any older release or roll back with your settings intact.</p></div>
+      <div class="card"><span class="ico">🕹️</span><h3>Steam Deck autopilot</h3><p>After a one-time setup, Steam's Play button (also in Gaming Mode) updates the mod and starts co-op under Proton.</p></div>
+      <div class="card"><span class="ico">🩺</span><h3>Troubleshooting</h3><p>Diagnostics, conflict detection, patch alerts, fixes for common problems, and a bug report zip with your password removed.</p></div>
+      <div class="card"><span class="ico">📦</span><h3>Portable</h3><p>One file. Everything it keeps lives next to it in <code>BonfireLink-data</code>. It updates itself.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="windows">
+  <div class="wrap two">
+    <div>
+      <h2>Windows</h2>
+      <p class="lead">Three clicks from download to co-op.</p>
+      <div class="steps">
+        <div class="step"><div><b>Download and run</b><span>Put <code>BonfireLink-windows-x64.exe</code> in its own folder and start it. Steam libraries are found automatically.</span></div></div>
+        <div class="step"><div><b>Install the mod</b><span>Open a game tab and press <i>Install Seamless Co-op</i>. Saves are backed up first.</span></div></div>
+        <div class="step"><div><b>Set a password and play</b><span><i>Configure</i> (or <i>Generate</i>), then <i>▶ Play co-op</i>. Want an icon? <i>Troubleshoot → Desktop shortcut</i>.</span></div></div>
+      </div>
+    </div>
+    <div id="deck">
+      <h2>Steam Deck</h2>
+      <p class="lead">Open Konsole in Desktop Mode and paste:</p>
+      <pre>curl -fsSL https://github.com/clawdroppin/BonfireLink/releases/latest/download/install-steamdeck.sh | bash</pre>
+      <div class="steps">
+        <div class="step"><div><b>Install your mods</b><span>Pick each game and press Install.</span></div></div>
+        <div class="step"><div><b>Set launch options</b><span>Home → <i>Set launch options</i>. Steam restarts once.</span></div></div>
+        <div class="step"><div><b>Play from Gaming Mode</b><span>Press Play on the game as usual. BonfireLink updates the mod and starts Seamless Co-op. <i>Add BonfireLink to Steam</i> to tweak settings from Gaming Mode.</span></div></div>
+      </div>
+      <p style="color:var(--dim);font-size:14px;margin-top:12px">Prefer manual? Download <a href="https://github.com/clawdroppin/BonfireLink/releases/latest/download/BonfireLink-SteamDeck.tar.gz">BonfireLink-SteamDeck.tar.gz</a>, extract and double-click <code>BonfireLink</code>.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>A closer look</h2>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-img="screenshots/home.png">Home</button>
+      <button role="tab" aria-selected="false" data-img="screenshots/configure.png">Configure</button>
+      <button role="tab" aria-selected="false" data-img="screenshots/together.png">Play together</button>
+      <button role="tab" aria-selected="false" data-img="screenshots/versions.png">Versions</button>
+      <button role="tab" aria-selected="false" data-img="screenshots/troubleshoot.png">Troubleshoot</button>
+    </div>
+    <div class="gallery"><img id="gallery" src="screenshots/home.png" alt="BonfireLink screenshot"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Supported games</h2>
+    <table>
+      <tr><th>Game</th><th>Where the mod comes from</th><th>Install</th></tr>
+      <tr><td class="g" style="color:var(--er)">Elden Ring</td><td>Author's GitHub releases + Nexus</td><td>One click</td></tr>
+      <tr><td class="g" style="color:var(--ds3)">Dark Souls III</td><td>Nexus Mods</td><td>One click with a Nexus Premium key, otherwise <i>Get it from Nexus</i> (auto-installs the download)</td></tr>
+      <tr><td class="g" style="color:var(--ds2)">Dark Souls II: SotFS</td><td>Author's GitHub releases + Nexus</td><td>One click</td></tr>
+      <tr><td class="g" style="color:var(--dsr)">Dark Souls Remastered</td><td>Nexus Mods</td><td>One click with a Nexus Premium key, otherwise <i>Get it from Nexus</i></td></tr>
+      <tr><td class="g" style="color:var(--sek)">Sekiro</td><td>Announced, not released</td><td>BonfireLink offers it the day it ships</td></tr>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Questions</h2>
+    <details><summary>Is this made by the Seamless Co-op author?</summary><p>No. BonfireLink is an unofficial fan tool. The mods are made by LukeYui (Yui); BonfireLink only downloads them from the official GitHub releases or Nexus Mods and never changes the mod files. Please support the author.</p></details>
+    <details><summary>Will it touch my saves?</summary><p>Only when you ask (restore or vanilla ⇄ co-op copy), and it always makes a backup first. Seamless Co-op itself uses a separate save file, so your vanilla character is safe.</p></details>
+    <details><summary>Does it change Steam?</summary><p>On Windows, no. On Steam Deck it adds its launch wrapper to each modded game's launch options (your own options are kept) and can add itself as a non-Steam shortcut. Uninstall removes the launch option again.</p></details>
+    <details><summary>Is it safe to play online?</summary><p>Seamless Co-op runs on its own servers with the game's anti-cheat off, separate from official matchmaking. Use <i>Mods off</i> for official online play, and don't take items into vanilla online that the official game wouldn't allow.</p></details>
+    <div class="note">Found a bug? Open the game's tab → Troubleshoot → <i>Save a bug report</i> and attach the zip to a <a href="https://github.com/clawdroppin/BonfireLink/issues">GitHub issue</a>.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>BonfireLink is MIT licensed · <a href="https://github.com/clawdroppin/BonfireLink">Source on GitHub</a> · <a href="https://github.com/clawdroppin/BonfireLink/releases">Releases</a></p>
+    <p>Seamless Co-op © LukeYui. Elden Ring, Dark Souls and Sekiro are trademarks of their owners. Not affiliated with FromSoftware, Bandai Namco or Activision.</p>
+  </div>
+</footer>
+
+<script>
+  const embers = document.querySelector('.embers');
+  for (let i = 0; i < 26; i++) {
+    const s = document.createElement('span');
+    s.style.left = (Math.random() * 100) + '%';
+    s.style.animationDelay = (Math.random() * 7) + 's';
+    s.style.animationDuration = (5 + Math.random() * 5) + 's';
+    s.style.setProperty('--dx', ((Math.random() - .5) * 160) + 'px');
+    embers.appendChild(s);
+  }
+  const img = document.getElementById('gallery');
+  document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', 'false'));
+    b.setAttribute('aria-selected', 'true');
+    img.src = b.dataset.img;
+    img.alt = 'BonfireLink ' + b.textContent + ' page';
+  }));
+</script>
+</body>
+</html>
