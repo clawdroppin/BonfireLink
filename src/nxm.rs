@@ -139,6 +139,7 @@ pub enum Handler {
     Other(String),
 }
 
+#[cfg(windows)]
 pub fn exe_command() -> Result<String> {
     Ok(format!("\"{}\" \"%1\"", std::env::current_exe()?.display()))
 }
@@ -152,6 +153,7 @@ pub fn current_handler() -> Handler {
     classify(&cmd)
 }
 
+#[cfg(any(windows, test))]
 fn classify(cmd: &str) -> Handler {
     if cmd.trim().is_empty() {
         return Handler::None;
