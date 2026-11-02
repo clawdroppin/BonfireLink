@@ -894,7 +894,7 @@ impl App {
                 tab_btn(ui, self, Tab::Game(def.id), text, accent(def));
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.add(egui::Button::new(RichText::new("🤖 AI").size(15.0).strong()).corner_radius(6)).clicked() {
+                if ui.add(egui::Button::new(RichText::new("AI").size(15.0).strong()).corner_radius(6)).clicked() {
                     self.llm_open = true;
                 }
                 tab_btn(ui, self, Tab::Help, "Help".into(), EMBER);
@@ -2570,7 +2570,7 @@ impl App {
             heading(ui, "Local AI assistant");
             dim(
                 ui,
-                "A small window (the 🤖 AI button) that chats with a local AI — LM Studio, Ollama, llama.cpp or anything that speaks the OpenAI API. It can read BonfireLink's state, troubleshoot, and with your confirmation install, update or fix things.",
+                "A small window (the AI button in the tab bar) that chats with a local AI — LM Studio, Ollama, llama.cpp or anything that speaks the OpenAI API. It can read BonfireLink's state, troubleshoot, and with your confirmation install, update or fix things.",
             );
             ui.horizontal(|ui| {
                 ui.label("Server");
@@ -2773,7 +2773,7 @@ impl App {
         egui::Panel::top("llm-top").show(ui, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                ui.label(RichText::new("🤖 BonfireLink AI").size(16.0).strong().color(EMBER));
+                ui.label(RichText::new("BonfireLink AI").size(16.0).strong().color(EMBER));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.add_enabled(!self.llm.busy, egui::Button::new("Clear chat").small()).clicked() {
                         self.llm.clear_chat();
@@ -2834,6 +2834,31 @@ impl App {
                 }
             });
         }
+        egui::Panel::bottom("llm-input").show(ui, |ui| {
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                let send = !self.llm.busy && !self.llm.input.trim().is_empty();
+                if ui
+                    .add(
+                        egui::TextEdit::multiline(&mut self.llm.input)
+                            .desired_width(f32::INFINITY)
+                            .desired_rows(2)
+                            .hint_text("Ask about your games, or let it fix something…"),
+                    )
+                    .changed()
+                    && ui.input(|i| i.key_pressed(egui::Key::Enter) && !i.modifiers.ctrl && !i.modifiers.command)
+                {
+                    self.send_llm(ui.ctx());
+                }
+                if ui
+                    .add_enabled(send, egui::Button::new(RichText::new("Send").strong().color(Color32::from_rgb(20, 16, 12))).fill(EMBER))
+                    .clicked()
+                {
+                    self.send_llm(ui.ctx());
+                }
+            });
+            ui.add_space(2.0);
+        });
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().stick_to_bottom(true).show(ui, |ui| {
                 for m in &self.llm.messages {
@@ -2875,31 +2900,6 @@ impl App {
                     });
                 }
             });
-        });
-        egui::Panel::bottom("llm-input").show(ui, |ui| {
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                let send = !self.llm.busy && !self.llm.input.trim().is_empty();
-                if ui
-                    .add(
-                        egui::TextEdit::multiline(&mut self.llm.input)
-                            .desired_width(f32::INFINITY)
-                            .desired_rows(2)
-                            .hint_text("Ask about your games, or let it fix something…"),
-                    )
-                    .changed()
-                    && ui.input(|i| i.key_pressed(egui::Key::Enter) && !i.modifiers.ctrl && !i.modifiers.command)
-                {
-                    self.send_llm(ui.ctx());
-                }
-                if ui
-                    .add_enabled(send, egui::Button::new(RichText::new("Send").strong().color(Color32::from_rgb(20, 16, 12))).fill(EMBER))
-                    .clicked()
-                {
-                    self.send_llm(ui.ctx());
-                }
-            });
-            ui.add_space(2.0);
         });
     }
 
