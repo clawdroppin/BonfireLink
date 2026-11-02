@@ -1,6 +1,6 @@
 [package]
 name = "bonfirelink"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 description = "One-click installer, updater and co-op companion for LukeYui's Seamless Co-op mods (Elden Ring, Dark Souls III, Dark Souls II, Dark Souls Remastered, Sekiro) on Windows and Steam Deck"
 repository = "https://github.com/clawdroppin/BonfireLink"

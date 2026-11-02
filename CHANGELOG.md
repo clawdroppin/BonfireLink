@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 (2026-11-02)
 
 - **BonfireLink AI** (🤖 button in the tab bar): a small assistant window that talks to any local LLM server
   speaking the OpenAI API — LM Studio (default, port 1234), Ollama (port 11434), llama.cpp, …
