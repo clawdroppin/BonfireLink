@@ -44,6 +44,7 @@ developer: every change must keep the one-button flows working without a termina
 | `src/share.rs` | `BL1.` session codes (deflate + base64url + checksum), comparison rows, password generator, friend message. |
 | `src/vdf.rs` | Valve KeyValues: text (`localconfig.vdf`, `libraryfolders.vdf`, `.acf`) and binary (`shortcuts.vdf`), round-tripping unknown data. |
 | `src/config.rs` | `Settings` (user choices) and `State` (what's installed), JSON with atomic writes. |
+| `src/llm.rs` | Local AI assistant: OpenAI-compatible chat + tool calling against a local LLM (LM Studio / Ollama / llama.cpp). Read-only tools run directly; destructive ones (install, uninstall, restore) block on an in-window yes/no. The system prompt describes the app and every tool. |
 | `src/selfupdate.rs` | Updating BonfireLink itself (SHA256SUMS.txt check, rename-swap of the running exe). |
 | `src/util.rs` | Hashing, archive extract (zip/7z), zip folders, PE version, folder fingerprint, redaction, pruning. |
 | `scripts/` | `package.py` (dist/), `check_elf.py` (Linux link check), `install-steamdeck.sh` (one-line Deck installer). |
@@ -65,6 +66,11 @@ developer: every change must keep the one-button flows working without a termina
 - **State** is loaded fresh and saved by every operation (`State::load()` … `save()`), because the Steam-launched
   `--auto-update` process may run while the GUI is open. `ops::BusyLock` (`BonfireLink-data/.busy`, owner PID checked)
   serialises mutating operations across processes.
+- **AI window** (`llm.rs`): a second egui viewport, opened by the 🤖 button (`App::llm_open`, shown each frame
+  with `ctx.show_viewport_immediate`). Chat runs on a background thread (ureq, OpenAI-compatible
+  `/v1/chat/completions` + `/v1/models`); tools call the same `ops`/`config` functions as the GUI, so the AI can
+  see and do what the app can. Destructive tools block on an in-window confirmation (mpsc); if the window is
+  closed the answer is "no". Settings live in `Settings` (`llm_*` fields).
 - **Nexus**: the API gives direct download links to Premium keys only (`Settings.nexus_premium`, cached from
   `/v1/users/validate.json`). Free accounts need the one-time `key`/`expires` from an `nxm://` link, which is why
   `nxm.rs` exists. Never register the nxm handler without the user ticking the box.
@@ -91,7 +97,7 @@ swaps that for `ersc_launcher.exe`. The others swap the game exe itself.
 ## Testing
 
 ```powershell
-cargo test                      # 21 unit/integration tests (ini, vdf, codes, versions, wrapper merge, full install cycle)
+cargo test                      # 23 unit/integration tests (ini, vdf, codes, versions, wrapper merge, full install cycle)
 cargo clippy --all-targets      # must be clean
 $env:BONFIRELINK_DATA="$env:TEMP\bl-test"; .\target\debug\BonfireLink.exe --status
 ```
@@ -123,5 +129,6 @@ $env:BONFIRELINK_DATA="$env:TEMP\bl-test"; .\target\debug\BonfireLink.exe --stat
 - [ ] DS3 / DSR / DS2 end-to-end installs on real game folders (archive layouts for DS3/DSR not seen yet).
 - [x] nxm:// hand-off: a second process queues the link and exits; the open window installs it (tested with a fake link; reports "connect Nexus first" without a key).
 - [ ] Nexus Premium download path and free-account nxm download with a real key; handler registration on a real Deck/desktop (not run on the dev PC to avoid taking over the owner's Vortex/MO2 links); Downloads watcher with Firefox/Chrome/Edge.
+- [ ] AI window against a real local server (LM Studio): model list, chat, tool calls, destructive-action confirmation.
 - Ideas: controller-friendly focus navigation for Gaming Mode, Heroic/Lutris detection, per-game Proton
   recommendation, Windows exe icon resource, Nexus SSO login (needs an application slug registered with Nexus).

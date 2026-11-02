@@ -78,6 +78,14 @@ pub struct Settings {
     pub dark_theme: bool,
     /// Games hidden from the tab bar (user doesn't own them).
     pub hidden_games: Vec<GameId>,
+    /// Local AI assistant: the OpenAI-compatible server (LM Studio, Ollama, llama.cpp, …).
+    pub llm_url: String,
+    /// Model id; empty = the server's first model.
+    pub llm_model: String,
+    /// Optional API key (some servers ask for one, even locally).
+    pub llm_api_key: String,
+    pub llm_temperature: f32,
+    pub llm_max_tokens: usize,
 }
 
 impl Default for Settings {
@@ -102,6 +110,11 @@ impl Default for Settings {
             last_tab: String::new(),
             dark_theme: true,
             hidden_games: Vec::new(),
+            llm_url: "http://localhost:1234/v1".into(),
+            llm_model: String::new(),
+            llm_api_key: String::new(),
+            llm_temperature: 0.2,
+            llm_max_tokens: 1024,
         }
     }
 }

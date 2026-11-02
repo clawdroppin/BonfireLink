@@ -5,6 +5,7 @@ mod app;
 mod config;
 mod games;
 mod ini;
+mod llm;
 mod nxm;
 mod ops;
 mod presets;

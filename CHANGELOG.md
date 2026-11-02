@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **BonfireLink AI** (🤖 button in the tab bar): a small assistant window that talks to any local LLM server
+  speaking the OpenAI API — LM Studio (default, port 1234), Ollama (port 11434), llama.cpp, …
+  - Knows the app: status of every game, diagnostics, BonfireLink's own log, settings, save state, backups,
+    rollbacks, release feeds, the mod's settings ini, and files in the data folder and the mod folder.
+  - Can act: install/update or uninstall the mod, back up or restore saves, set mods off, launch the game, and
+    change BonfireLink's settings. Destructive actions (install, uninstall, restore) ask for a yes/no
+    confirmation in the window first.
+  - Server URL, model, API key, temperature and max tokens are set in the window's Settings panel and saved
+    like everything else.
+
 ## 1.0.0 (2026-10-29)
 
 First release.

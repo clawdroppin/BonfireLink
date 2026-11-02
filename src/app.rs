@@ -4,6 +4,7 @@
 use crate::config::{self, Settings, State};
 use crate::games::{GAMES, GameDef, GameId};
 use crate::ini::{Ini, Kind};
+use crate::llm;
 use crate::ops::{self, Job, LaunchOptionOutcome, Status};
 use crate::remote::{self, Feed, Release};
 use crate::share::{self, Session, Severity};
@@ -170,6 +171,11 @@ pub struct App {
     last_inbox_poll: Instant,
     nxm_handler: nxm::Handler,
     nexus_key_draft: String,
+    /// The local AI assistant window (a second viewport).
+    llm: llm::LlmUi,
+    llm_open: bool,
+    /// Pending result of a model-list fetch for the AI window.
+    llm_models_rx: Option<std::sync::mpsc::Receiver<Result<Vec<String>, String>>>,
 }
 
 impl App {
@@ -180,6 +186,7 @@ impl App {
             "help" => Tab::Help,
             k => crate::games::by_key(k).map(|g| Tab::Game(g.id)).unwrap_or(Tab::Home),
         };
+        let llm_ui = llm::LlmUi::new(&settings);
         let mut app = App {
             settings,
             tab,
@@ -213,6 +220,9 @@ impl App {
             last_inbox_poll: Instant::now() - Duration::from_secs(10),
             nxm_handler: nxm::current_handler(),
             nexus_key_draft: String::new(),
+            llm: llm_ui,
+            llm_open: false,
+            llm_models_rx: None,
         };
         nxm::mark_gui_running();
         app.nexus_key_draft = app.settings.nexus_api_key.clone();
@@ -432,8 +442,51 @@ impl App {
         if (flagged || self.last_scan.elapsed() > Duration::from_secs(20)) && !self.busy() {
             self.rescan(false);
         }
+        // Local AI window: model list fetch result.
+        if let Some(rx) = &self.llm_models_rx
+            && let Ok(r) = rx.try_recv()
+        {
+            self.llm_models_rx = None;
+            match r {
+                Ok(models) => {
+                    self.llm.models = models.clone();
+                    if self.llm.model.trim().is_empty()
+                        && let Some(first) = models.first().cloned()
+                    {
+                        self.llm.model = first;
+                    }
+                }
+                Err(e) => self.llm.models_error = e,
+            }
+        }
+        // Local AI window: events from the chat thread. The receiver stays in the
+        // struct (try_recv borrows it) so events sent later in the turn are not lost.
+        while let Some(rx) = self.llm.rx.as_ref() {
+            let Ok(ev) = rx.try_recv() else { break };
+            match ev {
+                llm::LlmEvent::Say(m) => {
+                    self.llm.messages.push(m);
+                    ctx.request_repaint();
+                }
+                llm::LlmEvent::Confirm { title, body, reply } => {
+                    self.llm.pending_confirm = Some((title, body, reply));
+                    ctx.request_repaint();
+                }
+                llm::LlmEvent::Done(err) => {
+                    self.llm.busy = false;
+                    self.llm.rx = None;
+                    if let Some(e) = err {
+                        self.llm.push("assistant", format!("Sorry, that did not work: {e}"));
+                    }
+                    // Tools may have changed what is on disk; refresh the picture.
+                    self.rescan(false);
+                    self.llm.refresh_system(&self.settings);
+                    ctx.request_repaint();
+                }
+            }
+        }
         self.messages.retain(|(k, _, t)| t.elapsed() < Duration::from_secs(if *k == MsgKind::Err { 25 } else { 10 }));
-        if self.job.is_some() || self.feed_rx.is_some() || !self.messages.is_empty() {
+        if self.job.is_some() || self.feed_rx.is_some() || !self.messages.is_empty() || self.llm.busy {
             ctx.request_repaint_after(Duration::from_millis(150));
         }
     }
@@ -791,6 +844,18 @@ impl eframe::App for App {
             });
         });
         self.confirm_modal(&ctx);
+
+        // Local AI window: a second viewport, created fresh each frame while open.
+        if self.llm_open {
+            let builder = egui::ViewportBuilder::default()
+                .with_title("BonfireLink AI")
+                .with_inner_size([460.0, 620.0])
+                .with_min_inner_size([360.0, 420.0]);
+            ctx.show_viewport_immediate(llm::viewport_id(), builder, |ui, _class| {
+                self.llm_window(ui);
+                self.llm_confirm_modal(ui.ctx());
+            });
+        }
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
@@ -829,6 +894,9 @@ impl App {
                 tab_btn(ui, self, Tab::Game(def.id), text, accent(def));
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.add(egui::Button::new(RichText::new("🤖 AI").size(15.0).strong()).corner_radius(6)).clicked() {
+                    self.llm_open = true;
+                }
                 tab_btn(ui, self, Tab::Help, "Help".into(), EMBER);
                 tab_btn(ui, self, Tab::Settings, "⚙ Settings".into(), EMBER);
             });
@@ -2499,6 +2567,33 @@ impl App {
         });
         ui.add_space(8.0);
         card(ui, |ui| {
+            heading(ui, "Local AI assistant");
+            dim(
+                ui,
+                "A small window (the 🤖 AI button) that chats with a local AI — LM Studio, Ollama, llama.cpp or anything that speaks the OpenAI API. It can read BonfireLink's state, troubleshoot, and with your confirmation install, update or fix things.",
+            );
+            ui.horizontal(|ui| {
+                ui.label("Server");
+                changed |= ui.add(egui::TextEdit::singleline(&mut self.settings.llm_url).desired_width(250.0)).changed();
+            });
+            ui.horizontal(|ui| {
+                ui.label("Model");
+                changed |= ui.add(egui::TextEdit::singleline(&mut self.settings.llm_model).desired_width(250.0)).changed();
+                dim(ui, "(leave empty to use the server's first model)");
+            });
+            ui.horizontal(|ui| {
+                ui.label("API key (optional)");
+                changed |= ui.add(egui::TextEdit::singleline(&mut self.settings.llm_api_key).desired_width(160.0)).changed();
+            });
+            ui.horizontal(|ui| {
+                ui.label("Temperature");
+                changed |= ui.add(egui::Slider::new(&mut self.settings.llm_temperature, 0.0..=1.5).step_by(0.05)).changed();
+                ui.label("Max tokens");
+                changed |= ui.add(egui::DragValue::new(&mut self.settings.llm_max_tokens).range(64..=8192)).changed();
+            });
+        });
+        ui.add_space(8.0);
+        card(ui, |ui| {
             heading(ui, "Games shown");
             ui.horizontal_wrapped(|ui| {
                 for def in GAMES {
@@ -2666,6 +2761,206 @@ impl App {
             }
             Some(false) => self.confirm = None,
             None => {}
+        }
+    }
+
+    // ---------- local AI window (second viewport) ----------
+
+    fn llm_window(&mut self, ui: &mut Ui) {
+        if ui.input(|i| i.viewport().close_requested()) {
+            self.llm_open = false;
+        }
+        egui::Panel::top("llm-top").show(ui, |ui| {
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("🤖 BonfireLink AI").size(16.0).strong().color(EMBER));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.add_enabled(!self.llm.busy, egui::Button::new("Clear chat").small()).clicked() {
+                        self.llm.clear_chat();
+                    }
+                    if ui.small_button(if self.llm.show_settings { "Hide settings" } else { "Settings" }).clicked() {
+                        self.llm.show_settings = !self.llm.show_settings;
+                    }
+                });
+            });
+        });
+        if self.llm.show_settings {
+            egui::Panel::top("llm-settings").show(ui, |ui| {
+                ui.add_space(4.0);
+                let mut changed = false;
+                ui.horizontal(|ui| {
+                    ui.label("Server");
+                    changed |= ui.add(egui::TextEdit::singleline(&mut self.settings.llm_url).desired_width(250.0)).changed();
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Model");
+                    let mut model = self.llm.model.clone();
+                    let resp = egui::ComboBox::from_label(model.clone())
+                        .selected_text(&model)
+                        .show_ui(ui, |ui| {
+                            if self.llm.models.is_empty() {
+                                ui.label(RichText::new("(none found — type the name").color(DIM));
+                            }
+                            for m in &self.llm.models {
+                                ui.selectable_value(&mut model, m.clone(), m);
+                            }
+                        });
+                    if resp.response.changed() {
+                        self.llm.model = model;
+                        self.settings.llm_model = self.llm.model.clone();
+                        changed = true;
+                    }
+                    if ui.button("Refresh").clicked() {
+                        self.refresh_models();
+                    }
+                });
+                if !self.llm.models_error.is_empty() {
+                    dim(ui, &self.llm.models_error);
+                }
+                ui.horizontal(|ui| {
+                    ui.label("API key (optional)");
+                    changed |= ui.add(egui::TextEdit::singleline(&mut self.settings.llm_api_key).desired_width(160.0)).changed();
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Temperature");
+                    changed |= ui.add(egui::Slider::new(&mut self.settings.llm_temperature, 0.0..=1.5).step_by(0.05)).changed();
+                    ui.label("Max tokens");
+                    changed |= ui.add(egui::DragValue::new(&mut self.settings.llm_max_tokens).range(64..=8192)).changed();
+                });
+                dim(ui, "Works with any local server that speaks the OpenAI API: LM Studio (default port 1234), Ollama (port 11434), llama.cpp, …");
+                if changed {
+                    self.save_settings();
+                    self.llm.refresh_system(&self.settings);
+                }
+            });
+        }
+        egui::CentralPanel::default().show(ui, |ui| {
+            egui::ScrollArea::vertical().stick_to_bottom(true).show(ui, |ui| {
+                for m in &self.llm.messages {
+                    if m.role == "system" {
+                        continue;
+                    }
+                    match m.role {
+                        "user" => {
+                            ui.horizontal(|ui| {
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                                    egui::Frame::new().fill(CARD_HI).corner_radius(6.0).inner_margin(6.0).show(ui, |ui| {
+                                        ui.add(egui::Label::new(m.text.clone()).wrap());
+                                    });
+                                });
+                            });
+                        }
+                        "assistant" => {
+                            ui.add(egui::Label::new(m.text.clone()).wrap());
+                        }
+                        "tool" => {
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    RichText::new(format!("⚙ {}", m.tool_name.clone().unwrap_or_default()))
+                                        .monospace()
+                                        .size(11.0)
+                                        .color(DIM),
+                                );
+                                let text = m.text.chars().take(160).collect::<String>();
+                                ui.label(RichText::new(text).monospace().size(11.0).color(DIM));
+                            });
+                        }
+                        _ => {}
+                    }
+                }
+                if self.llm.busy {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        dim(ui, "thinking…");
+                    });
+                }
+            });
+        });
+        egui::Panel::bottom("llm-input").show(ui, |ui| {
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                let send = !self.llm.busy && !self.llm.input.trim().is_empty();
+                if ui
+                    .add(
+                        egui::TextEdit::multiline(&mut self.llm.input)
+                            .desired_width(f32::INFINITY)
+                            .desired_rows(2)
+                            .hint_text("Ask about your games, or let it fix something…"),
+                    )
+                    .changed()
+                    && ui.input(|i| i.key_pressed(egui::Key::Enter) && !i.modifiers.ctrl && !i.modifiers.command)
+                {
+                    self.send_llm(ui.ctx());
+                }
+                if ui
+                    .add_enabled(send, egui::Button::new(RichText::new("Send").strong().color(Color32::from_rgb(20, 16, 12))).fill(EMBER))
+                    .clicked()
+                {
+                    self.send_llm(ui.ctx());
+                }
+            });
+            ui.add_space(2.0);
+        });
+    }
+
+    fn send_llm(&mut self, ctx: &egui::Context) {
+        if self.llm.busy {
+            return;
+        }
+        let text = self.llm.input.trim().to_string();
+        if text.is_empty() {
+            return;
+        }
+        self.llm.input.clear();
+        self.llm.push("user", text);
+        self.llm.busy = true;
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.llm.rx = Some(rx);
+        let settings = self.settings.clone();
+        let model =
+            if self.llm.model.trim().is_empty() { self.llm.models.first().cloned().unwrap_or_default() } else { self.llm.model.clone() };
+        let history = self.llm.messages.clone();
+        std::thread::spawn(move || llm::run_turn(settings, model, history, tx));
+        ctx.request_repaint();
+    }
+
+    fn refresh_models(&mut self) {
+        self.llm.models_error.clear();
+        let settings = self.settings.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.llm_models_rx = Some(rx);
+        std::thread::spawn(move || {
+            let r = llm::list_models(&settings).map_err(|e| format!("{e:#}"));
+            let _ = tx.send(r);
+        });
+    }
+
+    fn llm_confirm_modal(&mut self, ctx: &egui::Context) {
+        let Some((title, body, _reply)) = &self.llm.pending_confirm else { return };
+        let title = title.clone();
+        let body = body.clone();
+        let mut answer: Option<bool> = None;
+        egui::Modal::new(egui::Id::unique("bonfirelink-llm-confirm")).show(ctx, |ui| {
+            ui.set_max_width(460.0);
+            ui.label(RichText::new("The AI wants to do this").size(18.0).strong());
+            ui.add_space(4.0);
+            ui.label(RichText::new(title).strong());
+            ui.add_space(2.0);
+            ui.label(body);
+            ui.add_space(10.0);
+            ui.horizontal(|ui| {
+                if ui.add(egui::Button::new(RichText::new("Allow").strong().color(Color32::from_rgb(20, 16, 12))).fill(EMBER)).clicked() {
+                    answer = Some(true);
+                }
+                if ui.button("Cancel").clicked() || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                    answer = Some(false);
+                }
+            });
+        });
+        if let Some(a) = answer {
+            let reply = self.llm.pending_confirm.take().unwrap().2;
+            let _ = reply.send(a);
+            ctx.request_repaint();
         }
     }
 }

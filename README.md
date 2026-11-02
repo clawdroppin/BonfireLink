@@ -36,6 +36,7 @@ on **Windows** and **Steam Deck**.
 | **⏪ Rollback** | Every update keeps the version it replaced. Install any older GitHub release, or roll back in one click. Your settings carry over both ways. |
 | **🕹 Steam Deck automation** | Sets each game's Steam launch option once. From then on Steam's normal **Play** button (also in Gaming Mode) updates the mod and starts Seamless Co-op under Proton. *Mods off* switches back to vanilla without touching Steam. |
 | **🩺 Troubleshooting** | Diagnostics, conflict detection (Mod Engine 2, me3, stray `dinput8.dll`, old Deck exe-swap tricks), game-patch alerts, common fixes, and a one-click bug report zip with the password removed. |
+| **🤖 BonfireLink AI** | Optional assistant window that talks to a LLM you run yourself (LM Studio, Ollama, llama.cpp — anything speaking the OpenAI API). It knows the whole app: every game's status, diagnostics, logs, settings, saves, backups. It can troubleshoot, install or update the mod, back up or restore saves, and change settings — destructive actions ask for a yes/no in the window first. Nothing leaves your machine. |
 | **📦 Portable** | One file, no installer, no runtime. Everything it keeps lives in `BonfireLink-data/` next to the app. Updates itself (SHA-256 checked). |
 
 Already installed Seamless Co-op by hand? BonfireLink adopts it, works out which release it is by hashing the DLL
@@ -127,6 +128,9 @@ Game patches can break the mod until the author updates it. BonfireLink shows th
 
 <details><summary><b>How do I connect my Nexus account?</b></summary>
 Settings > Nexus Mods > <i>Open my Nexus API key page</i>, log in, copy the <i>Personal API Key</i>, then <i>Paste</i> and <i>Save &amp; check</i> in BonfireLink (on the Deck in Gaming Mode: Steam + X opens the keyboard). With Premium everything is automatic. With a free account, also tick <i>Handle Nexus "Mod Manager Download" buttons</i>: if Vortex or Mod Organizer 2 had those links, BonfireLink remembers them and hands them back when you untick it. The key is stored in plain text in <code>BonfireLink-data/settings.json</code>.</details>
+
+<details><summary><b>What is the 🤖 AI window? Do I need the internet?</b></summary>
+It's an optional assistant that talks to a LLM you run on your own computer — LM Studio, Ollama, llama.cpp or similar. Nothing is sent to the internet. Open it with the 🤖 button, put in the server address (LM Studio: <code>http://localhost:1234</code>), pick a model, and ask it to check your setup, fix a problem, install or update the mod, or change a setting. Anything destructive asks for a yes/no first. Don't run a local LLM? Ignore it — everything works without it.</details>
 
 <details><summary><b>My antivirus removed the launcher.</b></summary>
 Seamless launchers inject a DLL into the game, which some antivirus programs flag. Restore it from quarantine (or allow the game folder) and reinstall from <i>Versions</i>.</details>
